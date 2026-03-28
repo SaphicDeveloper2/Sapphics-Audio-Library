@@ -1,0 +1,51 @@
+{
+	"schemaVersion": 1,
+	"id": "sapphicsaudiolib",
+	"version": "${version}",
+	"name": "SapphicsAudioLib",
+	"description": "A powerful client-side audio streaming library for Minecraft. Enables mods to stream custom .ogg audio files to nearby players with 3D spatial positioning, real-time volume/pitch controls, and automatic memory management.",
+	"authors": [
+		"Sapphic"
+	],
+	"contact": {
+		"homepage": "https://github.com/sapphic/sapphicsaudiolib",
+		"sources": "https://github.com/sapphic/sapphicsaudiolib"
+	},
+	"license": "MIT",
+	"icon": "assets/sapphicsaudiolib/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.sapphic.sal.Sapphicsaudiolib"
+		],
+		"client": [
+			"com.sapphic.sal.SapphicsaudiolibClient"
+		],
+		"fabric-datagen": [
+			"com.sapphic.sal.SapphicsaudiolibDataGenerator"
+		]
+	},
+	"mixins": [
+		"sapphicsaudiolib.mixins.json",
+		{
+			"config": "sapphicsaudiolib.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.18.5",
+		"minecraft": "~1.21.1",
+		"java": ">=21",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"another-mod": "*"
+	},
+	"custom": {
+		"modmenu": {
+			"links": {
+				"modmenu.discord": "https://discord.gg/sapphicsaudiolib"
+			}
+		}
+	}
+}
