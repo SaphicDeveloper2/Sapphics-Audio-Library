@@ -1,10 +1,15 @@
 package com.sapphic.sal.radio;
 
-import com.sapphic.sal.Sapphicsaudiolib;
-
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+
+import com.sapphic.sal.Sapphicsaudiolib;
 
 /**
  * Registry for known/trusted radio stations.
@@ -27,12 +32,12 @@ public class StationRegistry {
      * Registers the default built-in stations.
      */
     private static void registerDefaultStations() {
-        // UpBeat.pw - Default music streaming station
+        // UpBeat - Default music streaming station
         register(RadioStation.builder()
                 .stationUuid("upbeat-pw-default")
                 .name("UpBeat")
-                .url("https://stream.upbeat.pw/stream")
-                .urlResolved("https://stream.upbeat.pw/stream")
+                .url("https://live.upbeat.pw/?type=website")
+                .urlResolved("https://live.upbeat.pw/?type=website")
                 .homepage("https://upbeat.pw")
                 .favicon("https://upbeat.pw/favicon.ico")
                 .tags("music,electronic,variety")

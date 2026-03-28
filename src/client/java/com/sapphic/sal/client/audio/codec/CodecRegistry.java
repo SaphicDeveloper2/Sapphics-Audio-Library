@@ -1,10 +1,26 @@
 package com.sapphic.sal.client.audio.codec;
 
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.UnsupportedAudioFileException;
+
 import com.sapphic.sal.Sapphicsaudiolib;
 import com.sapphic.sal.client.audio.AudioDecoder.DecodedAudio;
-
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Registry for audio codecs.
@@ -184,5 +200,81 @@ public class CodecRegistry {
             }
         }
         return extensions;
+    }
+    
+    /**
+     * Decodes an audio stream to a standard AudioInputStream.
+     * This method supports streaming - perfect for radio/continuous audio.
+     * 
+     * @param stream The input stream containing audio data
+     * @param formatHint Format hint (e.g., "mp3", "ogg") - can be null for auto-detect
+     * @return AudioInputStream in PCM format for playback
+     * @throws AudioCodec.CodecException if decoding fails
+     */
+    public static AudioInputStream decode(InputStream stream, String formatHint) throws AudioCodec.CodecException {
+        try {
+            // Ensure stream supports mark/reset for format detection
+            BufferedInputStream buffered = new BufferedInputStream(stream, 65536);
+            
+            // For MP3 streams, use JLayer frame-by-frame decoder (designed for streaming)
+            if (formatHint != null && (formatHint.equalsIgnoreCase("mp3") || formatHint.equalsIgnoreCase("mpeg"))) {
+                if (JLayerStreamDecoder.isAvailable()) {
+                    Sapphicsaudiolib.LOGGER.debug("Using JLayer streaming decoder for MP3");
+                    return JLayerStreamDecoder.createStreamingDecoder(buffered);
+                }
+            }
+            
+            // For other formats, try Java AudioSystem
+            buffered.mark(65536);
+            try {
+                AudioInputStream audioIn = AudioSystem.getAudioInputStream(buffered);
+                AudioFormat sourceFormat = audioIn.getFormat();
+                
+                Sapphicsaudiolib.LOGGER.debug("AudioSystem decoded: {} Hz, {} channels, {} encoding",
+                        sourceFormat.getSampleRate(), sourceFormat.getChannels(), sourceFormat.getEncoding());
+                
+                // Convert to standard PCM format if needed
+                if (sourceFormat.getEncoding() != AudioFormat.Encoding.PCM_SIGNED) {
+                    AudioFormat targetFormat = new AudioFormat(
+                            AudioFormat.Encoding.PCM_SIGNED,
+                            sourceFormat.getSampleRate(),
+                            16,
+                            sourceFormat.getChannels(),
+                            sourceFormat.getChannels() * 2,
+                            sourceFormat.getSampleRate(),
+                            false // little-endian for OpenAL
+                    );
+                    
+                    if (AudioSystem.isConversionSupported(targetFormat, sourceFormat)) {
+                        audioIn = AudioSystem.getAudioInputStream(targetFormat, audioIn);
+                        Sapphicsaudiolib.LOGGER.debug("Converted to PCM: {}", targetFormat);
+                    }
+                }
+                
+                return audioIn;
+                
+            } catch (UnsupportedAudioFileException e) {
+                // AudioSystem failed, try JLayer as fallback for MP3
+                Sapphicsaudiolib.LOGGER.debug("AudioSystem failed, trying JLayer decoder");
+                buffered.reset();
+                
+                if (JLayerStreamDecoder.isAvailable()) {
+                    try {
+                        return JLayerStreamDecoder.createStreamingDecoder(buffered);
+                    } catch (AudioCodec.CodecException ex) {
+                        Sapphicsaudiolib.LOGGER.debug("JLayer decoder also failed: {}", ex.getMessage());
+                    }
+                }
+                
+                throw new AudioCodec.CodecException("Unsupported audio format: " + formatHint, e);
+            }
+            
+        } catch (AudioCodec.CodecException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new AudioCodec.CodecException("Stream I/O error: " + e.getMessage(), e);
+        } catch (Exception e) {
+            throw new AudioCodec.CodecException("Stream decode error: " + e.getMessage(), e);
+        }
     }
 }

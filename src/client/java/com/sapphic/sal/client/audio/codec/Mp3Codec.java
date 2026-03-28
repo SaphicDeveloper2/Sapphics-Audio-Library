@@ -1,69 +1,60 @@
 package com.sapphic.sal.client.audio.codec;
 
-import com.sapphic.sal.Sapphicsaudiolib;
-import com.sapphic.sal.client.audio.AudioDecoder.DecodedAudio;
-import org.lwjgl.system.MemoryUtil;
-
-import javax.sound.sampled.*;
+import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.ShortBuffer;
 
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.UnsupportedAudioFileException;
+import javax.sound.sampled.spi.AudioFileReader;
+import javax.sound.sampled.spi.FormatConversionProvider;
+
+import org.lwjgl.system.MemoryUtil;
+
+import com.sapphic.sal.Sapphicsaudiolib;
+import com.sapphic.sal.client.audio.AudioDecoder.DecodedAudio;
+
 /**
- * MP3 codec implementation using Java Sound API.
+ * MP3 codec implementation using JavaZoom mp3spi directly.
  * 
- * <p>Note: Requires an MP3 SPI provider on the classpath. Popular options:
- * <ul>
- *   <li>JLayer MP3SPI (mp3spi + jlayer + tritonus-share)</li>
- *   <li>JavaZoom's BasicPlayer library</li>
- * </ul>
- * 
- * Add to build.gradle:
- * <pre>
- * dependencies {
- *     implementation 'javazoom:jlayer:1.0.1'
- *     implementation 'com.googlecode.soundlibs:mp3spi:1.9.5.4'
- *     implementation 'com.googlecode.soundlibs:tritonus-share:0.3.7.4'
- * }
- * </pre>
+ * <p>This implementation manually instantiates the MP3 decoder classes
+ * to avoid issues with Java SPI not detecting bundled JARs.
  */
 public class Mp3Codec implements AudioCodec {
     
     private static final Mp3Codec INSTANCE = new Mp3Codec();
     private static boolean mp3SupportAvailable = false;
+    private static AudioFileReader mp3FileReader = null;
+    private static FormatConversionProvider mp3ConversionProvider = null;
     
     static {
-        // Check if MP3 support is available
-        checkMp3Support();
+        // Manually load mp3spi classes
+        initMp3Support();
     }
     
-    private static void checkMp3Support() {
+    private static void initMp3Support() {
         try {
-            // Try to check if MP3 is registered
-            for (AudioFileFormat.Type type : AudioSystem.getAudioFileTypes()) {
-                if (type.toString().toLowerCase().contains("mp3")) {
-                    mp3SupportAvailable = true;
-                    break;
-                }
-            }
+            // Directly instantiate the mp3spi classes
+            Class<?> fileReaderClass = Class.forName("javazoom.spi.mpeg.sampled.file.MpegAudioFileReader");
+            mp3FileReader = (AudioFileReader) fileReaderClass.getDeclaredConstructor().newInstance();
             
-            // Also check available format converters
-            AudioFormat mp3Format = new AudioFormat(
-                    AudioFormat.Encoding.PCM_SIGNED,
-                    44100, 16, 2, 4, 44100, false
-            );
-            // This doesn't guarantee MP3 support but is a partial check
+            Class<?> conversionClass = Class.forName("javazoom.spi.mpeg.sampled.convert.MpegFormatConversionProvider");
+            mp3ConversionProvider = (FormatConversionProvider) conversionClass.getDeclaredConstructor().newInstance();
             
-            if (!mp3SupportAvailable) {
-                Sapphicsaudiolib.LOGGER.warn("MP3 SPI not detected. Add mp3spi library for MP3 support.");
-            } else {
-                Sapphicsaudiolib.LOGGER.info("MP3 codec support available via Java Sound API");
-            }
+            mp3SupportAvailable = true;
+            Sapphicsaudiolib.LOGGER.info("MP3 codec support initialized via javazoom.spi.mpeg");
+            
+        } catch (ClassNotFoundException e) {
+            Sapphicsaudiolib.LOGGER.warn("MP3 support not available - mp3spi library not found");
         } catch (Exception e) {
-            Sapphicsaudiolib.LOGGER.debug("Error checking MP3 support: {}", e.getMessage());
+            Sapphicsaudiolib.LOGGER.warn("Failed to initialize MP3 support: {}", e.getMessage());
         }
     }
     
@@ -123,13 +114,13 @@ public class Mp3Codec implements AudioCodec {
     
     @Override
     public DecodedAudio decode(byte[] data) throws CodecException {
-        if (!mp3SupportAvailable) {
-            // Try anyways - the SPI check might have missed something
-            Sapphicsaudiolib.LOGGER.debug("Attempting MP3 decode without confirmed SPI support");
+        if (!mp3SupportAvailable || mp3FileReader == null) {
+            throw new CodecException("MP3 support not available. Ensure mp3spi library is included.");
         }
         
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(data);
-             AudioInputStream mp3Stream = AudioSystem.getAudioInputStream(bais)) {
+        try (InputStream bais = new BufferedInputStream(new ByteArrayInputStream(data))) {
+            // Use the manually loaded MP3 file reader
+            AudioInputStream mp3Stream = mp3FileReader.getAudioInputStream(bais);
             
             AudioFormat sourceFormat = mp3Stream.getFormat();
             Sapphicsaudiolib.LOGGER.debug("MP3 source format: {}", sourceFormat);
@@ -145,9 +136,16 @@ public class Mp3Codec implements AudioCodec {
                     false // little endian for OpenAL
             );
             
-            // Convert to PCM
-            try (AudioInputStream pcmStream = AudioSystem.getAudioInputStream(targetFormat, mp3Stream)) {
-                
+            // Use the manually loaded conversion provider
+            AudioInputStream pcmStream;
+            if (mp3ConversionProvider != null && mp3ConversionProvider.isConversionSupported(targetFormat, sourceFormat)) {
+                pcmStream = mp3ConversionProvider.getAudioInputStream(targetFormat, mp3Stream);
+            } else {
+                // Fallback to AudioSystem
+                pcmStream = AudioSystem.getAudioInputStream(targetFormat, mp3Stream);
+            }
+            
+            try {
                 // Read all PCM data
                 ByteArrayOutputStream pcmBuffer = new ByteArrayOutputStream();
                 byte[] buffer = new byte[8192];
@@ -176,17 +174,65 @@ public class Mp3Codec implements AudioCodec {
                         sampleRate, channels, sampleCount);
                 
                 return new DecodedAudio(shortBuffer, sampleRate, channels, sampleCount);
+            } finally {
+                pcmStream.close();
+                mp3Stream.close();
             }
             
         } catch (UnsupportedAudioFileException e) {
-            throw new CodecException("MP3 format not supported. Install mp3spi library.", e);
+            throw new CodecException("MP3 format not supported: " + e.getMessage(), e);
         } catch (IOException e) {
             throw new CodecException("Failed to read MP3 data: " + e.getMessage(), e);
         }
     }
     
+    /**
+     * Gets a PCM AudioInputStream from an MP3 input stream.
+     * This is used for streaming decode.
+     * 
+     * @param stream The MP3 input stream
+     * @return AudioInputStream in PCM format
+     * @throws CodecException if decoding fails
+     */
+    public static AudioInputStream getStreamingAudioInputStream(InputStream stream) throws CodecException {
+        if (!mp3SupportAvailable || mp3FileReader == null) {
+            throw new CodecException("MP3 support not available");
+        }
+        
+        try {
+            InputStream buffered = new BufferedInputStream(stream, 65536);
+            AudioInputStream mp3Stream = mp3FileReader.getAudioInputStream(buffered);
+            AudioFormat sourceFormat = mp3Stream.getFormat();
+            
+            Sapphicsaudiolib.LOGGER.debug("MP3 stream format: {}", sourceFormat);
+            
+            // Target format for OpenAL: 16-bit signed PCM
+            AudioFormat targetFormat = new AudioFormat(
+                    AudioFormat.Encoding.PCM_SIGNED,
+                    sourceFormat.getSampleRate(),
+                    16,
+                    sourceFormat.getChannels(),
+                    sourceFormat.getChannels() * 2,
+                    sourceFormat.getSampleRate(),
+                    false
+            );
+            
+            // Convert to PCM
+            if (mp3ConversionProvider != null && mp3ConversionProvider.isConversionSupported(targetFormat, sourceFormat)) {
+                return mp3ConversionProvider.getAudioInputStream(targetFormat, mp3Stream);
+            } else {
+                return AudioSystem.getAudioInputStream(targetFormat, mp3Stream);
+            }
+            
+        } catch (UnsupportedAudioFileException e) {
+            throw new CodecException("Not a valid MP3 stream: " + e.getMessage(), e);
+        } catch (IOException e) {
+            throw new CodecException("Failed to read MP3 stream: " + e.getMessage(), e);
+        }
+    }
+    
     @Override
     public boolean supportsStreaming() {
-        return false; // Basic implementation doesn't support streaming yet
+        return mp3SupportAvailable;
     }
 }

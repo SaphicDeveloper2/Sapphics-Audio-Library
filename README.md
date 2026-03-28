@@ -33,6 +33,8 @@ A powerful client-side audio streaming library for Minecraft Fabric 1.21.1. Enab
 - [Architecture](#architecture)
 - [Best Practices](#best-practices)
 - [Debug Commands](#debug-commands)
+  - [Playback Commands](#playback-commands)
+  - [UpBeat Radio Commands](#upbeat-radio-commands)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -43,6 +45,7 @@ A powerful client-side audio streaming library for Minecraft Fabric 1.21.1. Enab
 - **Player-to-Player Broadcasting**: Let players share any `.ogg` file with nearby players (no pre-registration needed)
 - **Custom Player Sounds**: Players can set personalized sounds that others hear - no file sync needed on server or other clients
 - **Internet Radio Streaming**: Stream live internet radio stations using the Radio Browser API (30,000+ stations worldwide)
+- **UpBeat Radio Integration**: Built-in support for [UpBeat Radio](https://upbeat.pw) with now playing info, recently played history, and DJ schedule
 - **Abstract Radio Blocks**: Ready-to-extend base classes for creating in-world radio blocks with on/off and redstone control
 - **3D Spatial Audio**: Full OpenAL-based 3D positioning with distance attenuation
 - **Entity Tracking**: Sounds can follow entities as they move
@@ -1317,7 +1320,9 @@ if (activeSession == null || !activeSession.isPlaying()) {
 
 ## Debug Commands
 
-SapphicsAudioLib includes client-side debug commands for testing radio streaming:
+SapphicsAudioLib includes server-side commands for controlling radio streaming.
+
+### Playback Commands
 
 | Command | Description |
 |---------|-------------|
@@ -1328,6 +1333,15 @@ SapphicsAudioLib includes client-side debug commands for testing radio streaming
 | `/radio status` | Show current playback status |
 | `/radio` | Show command help |
 
+### UpBeat Radio Commands
+
+| Command | Description |
+|---------|-------------|
+| `/radio nowplaying` | Show current song on UpBeat Radio |
+| `/radio np` | Alias for nowplaying |
+| `/radio recent [count]` | Show recently played songs (default: 5, max: 20) |
+| `/radio schedule` | Show this week's DJ schedule |
+
 ### Examples
 
 ```
@@ -1336,9 +1350,31 @@ SapphicsAudioLib includes client-side debug commands for testing radio streaming
 /radio volume 0.5            # Set volume to 50%
 /radio status                # Check what's playing
 /radio stop                  # Stop playback
+
+# UpBeat integration
+/radio nowplaying            # See what song is playing on UpBeat
+/radio recent 10             # Show last 10 songs played
+/radio schedule              # See upcoming DJ shows
 ```
 
-> **Note:** These are client-side commands and only affect local playback. Station names support partial matching.
+### UpBeat Now Playing Output
+
+The `/radio nowplaying` command displays rich information:
+
+```
+══════ ♫ UpBeat Radio ♫ ══════
+Now Playing: Vossi Bop by Stormzy [Spotify]
+  ❤ 39  ★ 9  ▶ 256 plays
+On Air: Dean [LIVE SHOW]
+Listeners: 120
+Use /radio play UpBeat to listen!
+```
+
+- **Spotify links** are clickable to open the song on Spotify
+- **DJ names** link to their UpBeat profile
+- **Real-time stats** show likes, favourites, and play count
+
+> **Note:** Commands run server-side and send packets to control client playback. Station names support partial matching.
 
 ---
 

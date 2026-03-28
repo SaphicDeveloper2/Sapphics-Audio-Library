@@ -1,9 +1,8 @@
 package com.sapphic.sal.client.audio.codec;
 
-import com.sapphic.sal.Sapphicsaudiolib;
 import com.sapphic.sal.client.audio.AudioDecoder;
-import com.sapphic.sal.client.audio.AudioDecoder.DecodedAudio;
 import com.sapphic.sal.client.audio.AudioDecoder.AudioDecoderException;
+import com.sapphic.sal.client.audio.AudioDecoder.DecodedAudio;
 
 /**
  * OGG Vorbis codec implementation using LWJGL STB Vorbis.
