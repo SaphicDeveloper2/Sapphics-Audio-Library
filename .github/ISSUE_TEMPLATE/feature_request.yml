@@ -1,0 +1,65 @@
+name: Feature Request
+description: Suggest a new feature or improvement for Sapphics Audio Library
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea to make Sapphics Audio Library better? We'd love to hear it!
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Feature Area
+      description: Which part of the library does this relate to?
+      options:
+        - Audio Streaming
+        - Internet Radio
+        - 3D Spatial Audio / OpenAL
+        - Codec Support (OGG, MP3, AAC)
+        - API / Developer Interface
+        - Radio Block / Block Entities
+        - Network / Packet Handling
+        - Memory Management
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Feature Summary
+      description: A short, clear summary of the feature you'd like to see.
+      placeholder: "e.g. Add support for FLAC audio codec"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Motivation
+      description: What problem does this feature solve? Why is it needed?
+      placeholder: "Currently there is no way to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe how you'd like the feature to work, including any API changes.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any other approaches you've thought of?
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Links, references, or examples that might help.

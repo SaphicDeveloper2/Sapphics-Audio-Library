@@ -1,0 +1,90 @@
+name: Audio Issue
+description: Report problems specific to audio playback, streaming, codecs, or OpenAL
+title: "[Audio]: "
+labels: ["audio", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for audio-specific problems such as silence, distortion, codec errors, OpenAL failures, or radio stream issues.
+
+  - type: input
+    id: mod-version
+    attributes:
+      label: Mod Version
+      placeholder: "e.g. 1.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: mc-version
+    attributes:
+      label: Minecraft Version
+      placeholder: "e.g. 1.21.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: audio-category
+    attributes:
+      label: Audio Issue Category
+      options:
+        - No sound / silence
+        - Distorted or garbled audio
+        - OGG Vorbis codec error
+        - MP3 codec error
+        - AAC codec error
+        - Internet radio stream not loading
+        - Radio Browser API issue
+        - OpenAL / 3D spatial positioning
+        - Memory leak / audio resource not freed
+        - Volume or pitch controls not working
+        - Chunked streaming / network packets
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Issue Description
+      description: Describe the audio problem in detail.
+      placeholder: What audio behavior did you observe? What did you expect?
+    validations:
+      required: true
+
+  - type: input
+    id: audio-format
+    attributes:
+      label: Audio File Format / Source
+      description: What type of audio is involved?
+      placeholder: "e.g. OGG file, MP3 stream, internet radio URL"
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      placeholder: |
+        1. Call SapphicsAudioClientAPI.playAudio(...)
+        2. Use an .ogg file with sample rate ...
+        3. Observe the error
+    validations:
+      required: true
+
+  - type: textarea
+    id: openal-info
+    attributes:
+      label: OpenAL / Audio Device Info
+      description: If available, paste OpenAL device info or any audio driver details.
+      render: text
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log Output / Stack Trace
+      render: text
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discussions / Questions
+    url: https://github.com/SaphicDeveloper2/Sapphics-Audio-Library/discussions
+    about: Ask questions, share ideas, or get help from the community.
+  - name: 📖 Documentation / Wiki
+    url: https://github.com/SaphicDeveloper2/Sapphics-Audio-Library/wiki
+    about: Check the wiki for usage guides and API documentation.
