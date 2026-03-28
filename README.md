@@ -2,6 +2,12 @@
 
 A powerful client-side audio streaming library for Minecraft Fabric 1.21.1. Enables mods to stream custom `.ogg` audio files to nearby players with full 3D spatial positioning, real-time playback controls, and automatic memory management.
 
+<p align="center">
+  <img src="LogoFiles/UpBeat.png" alt="Powered by UpBeat" height="80">
+  <br>
+  <em>Default radio streaming powered by <a href="https://upbeat.pw">UpBeat</a></em>
+</p>
+
 ## Table of Contents
 
 - [Features](#features)
@@ -17,8 +23,16 @@ A powerful client-side audio streaming library for Minecraft Fabric 1.21.1. Enab
   - [Local Playback](#local-playback)
   - [Engine Status](#engine-status)
   - [Events](#events)
+- [Radio Streaming](#radio-streaming)
+  - [Searching for Stations](#searching-for-stations)
+  - [Playing Radio Streams](#playing-radio-streams)
+  - [Advanced Station Search](#advanced-station-search)
+- [Radio Blocks](#radio-blocks)
+  - [Creating a Radio Block](#creating-a-radio-block)
+  - [Radio Block Entity](#radio-block-entity)
 - [Architecture](#architecture)
 - [Best Practices](#best-practices)
+- [Debug Commands](#debug-commands)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -28,6 +42,8 @@ A powerful client-side audio streaming library for Minecraft Fabric 1.21.1. Enab
 - **Custom Audio Streaming**: Stream any `.ogg` Vorbis audio file to nearby players
 - **Player-to-Player Broadcasting**: Let players share any `.ogg` file with nearby players (no pre-registration needed)
 - **Custom Player Sounds**: Players can set personalized sounds that others hear - no file sync needed on server or other clients
+- **Internet Radio Streaming**: Stream live internet radio stations using the Radio Browser API (30,000+ stations worldwide)
+- **Abstract Radio Blocks**: Ready-to-extend base classes for creating in-world radio blocks with on/off and redstone control
 - **3D Spatial Audio**: Full OpenAL-based 3D positioning with distance attenuation
 - **Entity Tracking**: Sounds can follow entities as they move
 - **Real-time Controls**: Adjust volume, pitch, pause/resume during playback
@@ -675,6 +691,493 @@ SapphicsAudioEvents.CHUNK_RECEIVED.register((sessionId, chunkIndex, isLast, data
 
 ---
 
+## Radio Streaming
+
+SapphicsAudioLib integrates with the [Radio Browser API](https://www.radio-browser.info/) to provide access to over 30,000 live internet radio stations worldwide. It also includes a **Station Registry** for pre-configured stations and a **Codec Registry** for multi-format support.
+
+### Codec Support
+
+The library supports multiple audio codecs:
+
+| Codec | Status | Dependencies |
+|-------|--------|--------------|
+| **OGG Vorbis** | ✅ Built-in | None (uses LWJGL STB Vorbis) |
+| **MP3** | Optional | `mp3spi`, `jlayer`, `tritonus-share` |
+| **AAC** | Optional | `jaad` |
+
+To enable MP3/AAC support, add to your `build.gradle`:
+
+```gradle
+dependencies {
+    // MP3 support
+    implementation 'javazoom:jlayer:1.0.1'
+    implementation 'com.googlecode.soundlibs:mp3spi:1.9.5.4'
+    implementation 'com.googlecode.soundlibs:tritonus-share:0.3.7.4'
+    
+    // AAC support
+    implementation 'net.sourceforge.jaadec:jaad:0.8.6'
+}
+```
+
+Check codec availability at runtime:
+
+```java
+import com.sapphic.sal.client.radio.RadioStreamController;
+
+// Check if a codec is available
+boolean hasMp3 = RadioStreamController.isCodecAvailable("MP3");
+boolean hasAac = RadioStreamController.isCodecAvailable("AAC");
+
+// Get all codec statuses
+Map<String, Boolean> codecStatus = RadioStreamController.getCodecStatus();
+// {OGG=true, MP3=false, AAC=false} (without optional libraries)
+```
+
+### Station Registry
+
+Pre-register radio stations for quick access without API lookups:
+
+```java
+import com.sapphic.sal.radio.StationRegistry;
+import com.sapphic.sal.radio.RadioStation;
+
+// Get the default UpBeat station (always available)
+RadioStation upbeat = StationRegistry.getUpBeat();
+
+// Register a custom station
+StationRegistry.register(RadioStation.builder()
+    .stationUuid("my-radio-station")
+    .name("My Radio")
+    .url("https://stream.myradio.com/live")
+    .codec("MP3")
+    .bitrate(192)
+    .lastCheckOk(true)
+    .build());
+
+// Get a station by name
+RadioStation myStation = StationRegistry.getByName("My Radio");
+
+// Get all registered stations
+Collection<RadioStation> allStations = StationRegistry.getAll();
+
+// Search registered stations
+List<RadioStation> results = StationRegistry.search("radio");
+
+// Filter by codec
+List<RadioStation> oggStations = StationRegistry.filterByCodec("OGG");
+```
+
+#### Default Stations
+
+The following stations are pre-registered:
+
+| Station | Description | Codec |
+|---------|-------------|-------|
+| **UpBeat** | Default music streaming | MP3 |
+
+### Playing Default Station (UpBeat)
+
+The quickest way to start radio playback:
+
+```java
+import com.sapphic.sal.client.radio.RadioStreamController;
+
+// Play UpBeat with one line
+RadioStreamController.startUpBeat(0.8f).thenAccept(session -> {
+    System.out.println("Now playing: " + session.getStation().name());
+});
+
+// Or at a 3D position
+Vec3d radioPos = new Vec3d(100, 64, 200);
+RadioStreamController.startUpBeatAtPosition(radioPos, 1.0f);
+
+// Play any registered station by name
+RadioStreamController.startStreamByName("My Radio", 0.7f);
+```
+
+### Searching for Stations
+
+**Class:** `com.sapphic.sal.radio.RadioBrowserAPI`
+
+Search for radio stations using various criteria:
+
+```java
+import com.sapphic.sal.radio.RadioBrowserAPI;
+import com.sapphic.sal.radio.RadioStation;
+
+// Search by name
+CompletableFuture<List<RadioStation>> stations = RadioBrowserAPI.searchByName("jazz", 20);
+
+stations.thenAccept(results -> {
+    for (RadioStation station : results) {
+        System.out.println(station.name() + " - " + station.codec() + " @ " + station.bitrate() + " kbps");
+    }
+});
+
+// Search by tag/genre
+RadioBrowserAPI.searchByTag("rock", 10).thenAccept(results -> {
+    // Handle rock stations
+});
+
+// Search by country
+RadioBrowserAPI.searchByCountry("Germany", 15).thenAccept(results -> {
+    // Handle German stations
+});
+
+// Get top stations by popularity
+RadioBrowserAPI.getTopStations(25).thenAccept(results -> {
+    // Most clicked stations worldwide
+});
+
+// Search for OGG-compatible stations only
+RadioBrowserAPI.searchByCodec("ogg", 50).thenAccept(results -> {
+    // These work with the built-in decoder
+});
+```
+
+### Playing Radio Streams
+
+**Class:** `com.sapphic.sal.client.radio.RadioStreamController`
+
+> ⚠️ **CLIENT-SIDE ONLY** - Radio streaming must be initiated on the client.
+
+```java
+import com.sapphic.sal.client.radio.RadioStreamController;
+import com.sapphic.sal.client.radio.RadioStreamController.RadioStreamSession;
+
+// Search for a station and play it
+RadioBrowserAPI.searchByName("lofi", 5).thenCompose(stations -> {
+    if (stations.isEmpty()) {
+        return CompletableFuture.completedFuture(null);
+    }
+    
+    RadioStation station = stations.get(0);
+    
+    // Start streaming (non-positional audio for the local player)
+    return RadioStreamController.startStream(station, 0.8f);
+    
+}).thenAccept(session -> {
+    if (session != null) {
+        System.out.println("Now playing: " + session.getStation().name());
+        
+        // Control the stream
+        session.setVolume(0.5f);  // Adjust volume
+        session.pause();          // Pause
+        session.resume();         // Resume
+        session.stop();           // Stop completely
+    }
+});
+```
+
+#### Playing at a Position (3D Radio)
+
+Create an in-world radio that players can hear based on distance:
+
+```java
+// Play radio at a jukebox position
+Vec3d radioPosition = new Vec3d(100, 64, 200);
+
+RadioBrowserAPI.searchByTag("ambient", 10).thenCompose(stations -> {
+    RadioStation station = stations.stream()
+        .filter(RadioStation::isOggFormat)  // Filter for compatible codec
+        .findFirst()
+        .orElse(null);
+    
+    if (station == null) return CompletableFuture.completedFuture(null);
+    
+    // 3D positioned radio - attenuates with distance
+    return RadioStreamController.startStreamAtPosition(station, radioPosition, 1.0f);
+    
+}).thenAccept(session -> {
+    if (session != null) {
+        System.out.println("Radio placed at " + radioPosition);
+    }
+});
+```
+
+#### Radio Stream Controls
+
+```java
+RadioStreamSession session = // ... from startStream()
+
+// Volume control (0.0 to 1.0)
+session.setVolume(0.7f);
+
+// Pause/Resume
+session.pause();
+session.resume();
+
+// Check if still playing
+if (session.isPlaying()) {
+    // Stream is active
+}
+
+// Stop the stream
+session.stop();
+
+// Get station info
+RadioStation station = session.getStation();
+System.out.println("Station: " + station.name());
+System.out.println("Country: " + station.country());
+System.out.println("Tags: " + station.tags());
+```
+
+### Advanced Station Search
+
+Use `SearchQuery` for complex multi-criteria searches:
+
+```java
+import com.sapphic.sal.radio.RadioBrowserAPI.SearchQuery;
+
+// Build a complex query
+SearchQuery query = RadioBrowserAPI.queryBuilder()
+    .name("radio")                    // Name contains "radio"
+    .country("United States")         // USA stations
+    .tag("news")                      // Tagged as news
+    .codec("ogg")                     // OGG format only
+    .bitrateMin(128)                  // At least 128 kbps
+    .limit(20)                        // Max 20 results
+    .orderBy("clickcount")            // Sort by popularity
+    .build();
+
+RadioBrowserAPI.advancedSearch(query).thenAccept(stations -> {
+    System.out.println("Found " + stations.size() + " matching stations");
+    
+    for (RadioStation station : stations) {
+        System.out.printf("%s (%s) - %d kbps%n", 
+            station.name(), 
+            station.country(), 
+            station.bitrate());
+    }
+});
+```
+
+#### SearchQuery Options
+
+| Method | Description |
+|--------|-------------|
+| `name(String)` | Filter by station name (partial match) |
+| `nameExact(String)` | Filter by exact station name |
+| `country(String)` | Filter by country name |
+| `countryCode(String)` | Filter by 2-letter country code (e.g., "US", "DE") |
+| `state(String)` | Filter by state/region |
+| `language(String)` | Filter by broadcast language |
+| `tag(String)` | Filter by tag/genre |
+| `tagList(String)` | Filter by comma-separated tags |
+| `codec(String)` | Filter by codec (ogg, mp3, aac) |
+| `bitrateMin(int)` | Minimum bitrate in kbps |
+| `bitrateMax(int)` | Maximum bitrate in kbps |
+| `orderBy(String)` | Sort by: name, clickcount, votes, bitrate, random |
+| `reverse(boolean)` | Reverse sort order |
+| `offset(int)` | Pagination offset |
+| `limit(int)` | Maximum results (default 25) |
+
+### RadioStation Properties
+
+The `RadioStation` record contains metadata about each station:
+
+```java
+RadioStation station = // from search results
+
+// Basic Info
+String uuid = station.stationUuid();      // Unique identifier
+String name = station.name();              // Station name
+String url = station.getStreamUrl();       // Best stream URL
+
+// Location
+String country = station.country();        // Country name
+String countryCode = station.countryCode(); // 2-letter code
+String state = station.state();            // State/region
+
+// Technical
+String codec = station.codec();            // Audio codec (OGG, MP3, AAC)
+int bitrate = station.bitrate();           // Bitrate in kbps
+String tags = station.tags();              // Comma-separated tags
+String language = station.language();      // Broadcast language
+
+// Codec checks
+boolean ogg = station.isOggFormat();       // true if OGG Vorbis
+boolean mp3 = station.isMp3Format();       // true if MP3
+boolean aac = station.isAacFormat();       // true if AAC
+
+// Stats
+int votes = station.votes();               // User votes
+int clickcount = station.clickcount();     // Total clicks
+
+// Homepage
+String homepage = station.homepage();      // Station website
+String favicon = station.favicon();        // Station icon URL
+```
+
+---
+
+## Radio Blocks
+
+SapphicsAudioLib provides abstract base classes for creating radio blocks that can be turned on/off and play internet radio in your Minecraft world.
+
+### Creating a Radio Block
+
+Extend `AbstractRadioBlock` to create your own radio block:
+
+```java
+import com.sapphic.sal.block.AbstractRadioBlock;
+import com.sapphic.sal.radio.RadioStation;
+import com.sapphic.sal.radio.StationRegistry;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.util.math.BlockPos;
+
+public class MyRadioBlock extends AbstractRadioBlock {
+    
+    public MyRadioBlock(Settings settings) {
+        super(settings);
+    }
+    
+    @Override
+    public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+        return new MyRadioBlockEntity(pos, state);
+    }
+    
+    @Override
+    public BlockEntityType<?> getBlockEntityType() {
+        return MyBlockEntities.RADIO; // Your registered block entity type
+    }
+    
+    // Optional: Customize the default station
+    @Override
+    public RadioStation getDefaultStation() {
+        return StationRegistry.getUpBeat(); // Default UpBeat station
+    }
+    
+    // Optional: Customize the default volume
+    @Override
+    public float getDefaultVolume() {
+        return 0.8f;
+    }
+    
+    // Optional: Customize the hearing distance
+    @Override
+    public float getHearingDistance() {
+        return 48.0f; // Can be heard from 48 blocks away
+    }
+    
+    // Optional: Disable redstone control
+    @Override
+    protected boolean isRedstoneControllable() {
+        return true; // Set to false to disable redstone
+    }
+}
+```
+
+**Features of AbstractRadioBlock:**
+- Toggle on/off by right-clicking
+- Redstone controllable (optional)
+- Customizable default station, volume, and hearing distance
+- Automatic block entity ticker setup
+
+### Radio Block Entity
+
+Extend `AbstractRadioBlockEntity` for the block entity:
+
+```java
+import com.sapphic.sal.block.AbstractRadioBlockEntity;
+import net.minecraft.block.BlockState;
+import net.minecraft.util.math.BlockPos;
+
+public class MyRadioBlockEntity extends AbstractRadioBlockEntity {
+    
+    public MyRadioBlockEntity(BlockPos pos, BlockState state) {
+        super(MyBlockEntities.RADIO, pos, state);
+    }
+    
+    // Optional: Custom behavior when turned on
+    @Override
+    public void onTurnedOn() {
+        super.onTurnedOn();
+        // Play a click sound, emit particles, etc.
+    }
+    
+    // Optional: Custom behavior when turned off
+    @Override
+    public void onTurnedOff() {
+        super.onTurnedOff();
+        // Stop effects, etc.
+    }
+}
+```
+
+### Client-Side Setup
+
+On the client, use `RadioBlockClientHandler` to manage audio streaming:
+
+```java
+import com.sapphic.sal.client.block.RadioBlockClientHandler;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+
+public class MyModClient implements ClientModInitializer {
+    @Override
+    public void onInitializeClient() {
+        // Tick all radio blocks in the world
+        ClientTickEvents.END_WORLD_TICK.register(world -> {
+            world.blockEntities.forEach((pos, be) -> {
+                if (be instanceof AbstractRadioBlockEntity radio) {
+                    RadioBlockClientHandler.tick(radio);
+                }
+            });
+        });
+        
+        // Clean up when leaving the world
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
+            RadioBlockClientHandler.stopAllStreams();
+        });
+    }
+}
+```
+
+### Registering Your Block
+
+```java
+// In your mod's registry class
+public class MyBlocks {
+    public static final Block RADIO = Registry.register(
+        Registries.BLOCK,
+        Identifier.of("mymod", "radio"),
+        new MyRadioBlock(AbstractBlock.Settings.create()
+            .strength(1.0f)
+            .sounds(BlockSoundGroup.WOOD))
+    );
+}
+
+public class MyBlockEntities {
+    public static final BlockEntityType<MyRadioBlockEntity> RADIO = Registry.register(
+        Registries.BLOCK_ENTITY_TYPE,
+        Identifier.of("mymod", "radio"),
+        BlockEntityType.Builder.create(MyRadioBlockEntity::new, MyBlocks.RADIO).build()
+    );
+}
+```
+
+### Changing the Station
+
+Players or other systems can change the radio station:
+
+```java
+// Get the block entity
+if (world.getBlockEntity(pos) instanceof AbstractRadioBlockEntity radio) {
+    // Set to a registered station
+    radio.setStation("upbeat-pw-default");
+    
+    // Or set a custom stream URL
+    radio.setCustomStation("My Station", "https://stream.example.com/radio");
+    
+    // Adjust volume
+    radio.setVolume(0.5f);
+}
+```
+
+---
+
 ## Architecture
 
 SapphicsAudioLib is built with a layered architecture:
@@ -809,6 +1312,33 @@ if (activeSession == null || !activeSession.isPlaying()) {
     activeSession = SapphicsAudioClientAPI.playFromEntity(...).join();
 }
 ```
+
+---
+
+## Debug Commands
+
+SapphicsAudioLib includes client-side debug commands for testing radio streaming:
+
+| Command | Description |
+|---------|-------------|
+| `/radio play <name>` | Play a station from the registry |
+| `/radio stop` | Stop the current stream |
+| `/radio list` | List all registered stations |
+| `/radio volume <0.0-1.0>` | Set playback volume |
+| `/radio status` | Show current playback status |
+| `/radio` | Show command help |
+
+### Examples
+
+```
+/radio list                  # See available stations
+/radio play UpBeat           # Start playing UpBeat
+/radio volume 0.5            # Set volume to 50%
+/radio status                # Check what's playing
+/radio stop                  # Stop playback
+```
+
+> **Note:** These are client-side commands and only affect local playback. Station names support partial matching.
 
 ---
 
