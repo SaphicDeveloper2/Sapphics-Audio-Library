@@ -214,6 +214,62 @@ public class AudioSender {
         ClientPlayNetworking.send(AudioControlPayload.resume(sessionId));
     }
     
+    // ==================== BROADCAST (USER AUDIO) METHODS ====================
+    
+    /**
+     * Broadcasts an audio file to all nearby players, attached to an entity.
+     * Uses the special USER_AUDIO sound event ID, which is always registered.
+     * 
+     * @param audioPath Path to the local .ogg file
+     * @param sourceEntity Entity to attach the sound to (usually the player)
+     * @param volume Initial volume (0.0 - 1.0)
+     * @param pitch Initial pitch multiplier
+     * @param maxDistance Maximum hearing distance in blocks
+     * @return CompletableFuture containing the session UUID
+     */
+    public static CompletableFuture<UUID> broadcastFromEntity(Path audioPath, Entity sourceEntity,
+                                                               float volume, float pitch, float maxDistance) {
+        return streamFromEntity(audioPath, sourceEntity, SoundRegistry.USER_AUDIO, volume, pitch, maxDistance);
+    }
+    
+    /**
+     * Broadcasts an audio file to all nearby players at a static position.
+     * Uses the special USER_AUDIO sound event ID, which is always registered.
+     * 
+     * @param audioPath Path to the local .ogg file
+     * @param x X coordinate in world
+     * @param y Y coordinate in world
+     * @param z Z coordinate in world
+     * @param volume Initial volume (0.0 - 1.0)
+     * @param pitch Initial pitch multiplier
+     * @param maxDistance Maximum hearing distance in blocks
+     * @return CompletableFuture containing the session UUID
+     */
+    public static CompletableFuture<UUID> broadcastFromPosition(Path audioPath, double x, double y, double z,
+                                                                 float volume, float pitch, float maxDistance) {
+        return streamFromPosition(audioPath, x, y, z, SoundRegistry.USER_AUDIO, volume, pitch, maxDistance);
+    }
+    
+    /**
+     * Broadcasts audio data from memory to all nearby players.
+     * Uses the special USER_AUDIO sound event ID, which is always registered.
+     * 
+     * @param audioData Raw .ogg file data
+     * @param sourceEntityId Entity ID for attachment (-1 for static position)
+     * @param x X coordinate (used when entityId is -1)
+     * @param y Y coordinate (used when entityId is -1)
+     * @param z Z coordinate (used when entityId is -1)
+     * @param volume Initial volume (0.0 - 1.0)
+     * @param pitch Initial pitch multiplier
+     * @param maxDistance Maximum hearing distance in blocks
+     * @return CompletableFuture containing the session UUID
+     */
+    public static CompletableFuture<UUID> broadcastFromMemory(byte[] audioData, int sourceEntityId,
+                                                               double x, double y, double z,
+                                                               float volume, float pitch, float maxDistance) {
+        return streamFromMemory(audioData, sourceEntityId, x, y, z, SoundRegistry.USER_AUDIO, volume, pitch, maxDistance);
+    }
+    
     /**
      * Shuts down the sender's thread pool. Call during mod unload.
      */

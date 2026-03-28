@@ -1,11 +1,11 @@
 package com.sapphic.sal.registry;
 
-import com.sapphic.sal.Sapphicsaudiolib;
-
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+
+import com.sapphic.sal.Sapphicsaudiolib;
 
 /**
  * Registry for valid sound events that can be streamed through the audio library.
@@ -13,8 +13,20 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class SoundRegistry {
     
+    /**
+     * Special sound event ID for user-provided audio files.
+     * This ID is always registered and allows players to broadcast any .ogg file to nearby players.
+     * Use this when you want to let players share their own audio with others.
+     */
+    public static final String USER_AUDIO = "sapphicsaudiolib:user_audio";
+    
     // Thread-safe set of registered sound event identifiers
     private static final Set<String> registeredSounds = ConcurrentHashMap.newKeySet();
+    
+    // Static initializer to auto-register the user audio ID
+    static {
+        registeredSounds.add(USER_AUDIO);
+    }
     
     // Callbacks for when sounds are registered (useful for dependent mods)
     private static final Set<SoundRegistrationCallback> callbacks = ConcurrentHashMap.newKeySet();

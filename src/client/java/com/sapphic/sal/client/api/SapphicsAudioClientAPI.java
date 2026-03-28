@@ -160,6 +160,120 @@ public final class SapphicsAudioClientAPI {
         ).thenApply(AudioSession::new);
     }
     
+    // ==================== BROADCAST - SHARE AUDIO TO OTHERS ====================
+    // These methods use a special always-registered sound event ID to allow
+    // players to share ANY .ogg file with nearby players.
+    
+    /**
+     * Broadcasts any .ogg audio file to all nearby players, attached to an entity.
+     * <p>Unlike playFromEntity, this does NOT require pre-registering a sound event.
+     * Use this for letting players share their own audio files with others.</p>
+     * 
+     * @param audioPath Path to the local .ogg file
+     * @param sourceEntity Entity to attach the sound to (usually the player sending it)
+     * @param options Sound configuration options
+     * @return CompletableFuture resolving to the AudioSession handle
+     */
+    public static CompletableFuture<AudioSession> broadcastFromEntity(Path audioPath, Entity sourceEntity,
+                                                                       SoundOptions options) {
+        return AudioSender.broadcastFromEntity(
+                audioPath, sourceEntity,
+                options.volume(), options.pitch(), options.maxDistance()
+        ).thenApply(AudioSession::new);
+    }
+    
+    /**
+     * Broadcasts any .ogg audio file to all nearby players, attached to an entity.
+     * Uses default sound options.
+     * 
+     * @param audioPath Path to the local .ogg file
+     * @param sourceEntity Entity to attach the sound to (usually the player sending it)
+     * @return CompletableFuture resolving to the AudioSession handle
+     */
+    public static CompletableFuture<AudioSession> broadcastFromEntity(Path audioPath, Entity sourceEntity) {
+        return broadcastFromEntity(audioPath, sourceEntity, SoundOptions.defaults());
+    }
+    
+    /**
+     * Broadcasts any .ogg audio file from memory to all nearby players, attached to an entity.
+     * 
+     * @param audioData Raw .ogg file data
+     * @param sourceEntity Entity to attach the sound to
+     * @param options Sound configuration options
+     * @return CompletableFuture resolving to the AudioSession handle
+     */
+    public static CompletableFuture<AudioSession> broadcastFromEntityMemory(byte[] audioData, Entity sourceEntity,
+                                                                             SoundOptions options) {
+        return AudioSender.broadcastFromMemory(
+                audioData, sourceEntity.getId(), 0, 0, 0,
+                options.volume(), options.pitch(), options.maxDistance()
+        ).thenApply(AudioSession::new);
+    }
+    
+    /**
+     * Broadcasts any .ogg audio file to all nearby players at a static position.
+     * <p>Unlike playAtPosition, this does NOT require pre-registering a sound event.
+     * Use this for letting players share their own audio files with others.</p>
+     * 
+     * @param audioPath Path to the local .ogg file
+     * @param position World position for the sound
+     * @param options Sound configuration options
+     * @return CompletableFuture resolving to the AudioSession handle
+     */
+    public static CompletableFuture<AudioSession> broadcastAtPosition(Path audioPath, Vec3d position,
+                                                                       SoundOptions options) {
+        return AudioSender.broadcastFromPosition(
+                audioPath, position.x, position.y, position.z,
+                options.volume(), options.pitch(), options.maxDistance()
+        ).thenApply(AudioSession::new);
+    }
+    
+    /**
+     * Broadcasts any .ogg audio file to all nearby players at a static position.
+     * Uses default sound options.
+     * 
+     * @param audioPath Path to the local .ogg file
+     * @param position World position for the sound
+     * @return CompletableFuture resolving to the AudioSession handle
+     */
+    public static CompletableFuture<AudioSession> broadcastAtPosition(Path audioPath, Vec3d position) {
+        return broadcastAtPosition(audioPath, position, SoundOptions.defaults());
+    }
+    
+    /**
+     * Broadcasts any .ogg audio file to all nearby players at explicit coordinates.
+     * 
+     * @param audioPath Path to the local .ogg file
+     * @param x X coordinate
+     * @param y Y coordinate
+     * @param z Z coordinate
+     * @param options Sound configuration options
+     * @return CompletableFuture resolving to the AudioSession handle
+     */
+    public static CompletableFuture<AudioSession> broadcastAtPosition(Path audioPath, double x, double y, double z,
+                                                                       SoundOptions options) {
+        return AudioSender.broadcastFromPosition(
+                audioPath, x, y, z,
+                options.volume(), options.pitch(), options.maxDistance()
+        ).thenApply(AudioSession::new);
+    }
+    
+    /**
+     * Broadcasts audio data from memory to all nearby players at a static position.
+     * 
+     * @param audioData Raw .ogg file data
+     * @param position World position
+     * @param options Sound configuration options
+     * @return CompletableFuture resolving to the AudioSession handle
+     */
+    public static CompletableFuture<AudioSession> broadcastAtPositionMemory(byte[] audioData, Vec3d position,
+                                                                             SoundOptions options) {
+        return AudioSender.broadcastFromMemory(
+                audioData, -1, position.x, position.y, position.z,
+                options.volume(), options.pitch(), options.maxDistance()
+        ).thenApply(AudioSession::new);
+    }
+    
     // ==================== LOCAL PLAYBACK (NO NETWORKING) ====================
     
     /**
