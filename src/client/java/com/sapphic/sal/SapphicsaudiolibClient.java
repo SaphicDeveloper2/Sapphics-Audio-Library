@@ -1,6 +1,7 @@
 package com.sapphic.sal;
 
 import com.sapphic.sal.client.audio.MemoryCustodian;
+import com.sapphic.sal.client.command.RadioCommandHandler;
 import com.sapphic.sal.client.network.AudioReceiver;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
@@ -20,6 +21,9 @@ public class SapphicsaudiolibClient implements ClientModInitializer {
 		
 		// Initialize memory custodian for automatic cleanup
 		MemoryCustodian.initialize();
+		
+		// Register radio command packet handler (receives server commands)
+		RadioCommandHandler.register();
 		
 		// Register cleanup on client stop
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {

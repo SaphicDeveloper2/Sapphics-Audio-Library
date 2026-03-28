@@ -1,5 +1,6 @@
 package com.sapphic.sal;
 
+import com.sapphic.sal.command.RadioCommand;
 import com.sapphic.sal.network.NetworkHandler;
 import net.fabricmc.api.ModInitializer;
 
@@ -30,6 +31,9 @@ public class Sapphicsaudiolib implements ModInitializer {
 		
 		// Register network handlers for audio streaming
 		NetworkHandler.register();
+		
+		// Register debug commands (server-side)
+		RadioCommand.register();
 		
 		LOGGER.info("{} initialized successfully!", MOD_NAME);
 	}
